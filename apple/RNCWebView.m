@@ -8,6 +8,7 @@
 #import "RNCWebView.h"
 #import <React/RCTConvert.h>
 #import <React/RCTAutoInsetsProtocol.h>
+#import <MobileCoreServices/MobileCoreServices.h>
 #import "RNCWKProcessPoolManager.h"
 #if !TARGET_OS_OSX
 #import <UIKit/UIKit.h>
@@ -999,7 +1000,7 @@ static NSDictionary* customCertificatesForHost;
 }
 
 /**
- * Called when the web view’s content process is terminated.
+ * Called when the web view's content process is terminated.
  * @see https://developer.apple.com/documentation/webkit/wknavigationdelegate/1455639-webviewwebcontentprocessdidtermi?language=objc
  */
 - (void)webViewWebContentProcessDidTerminate:(WKWebView *)webView
@@ -1009,6 +1010,68 @@ static NSDictionary* customCertificatesForHost;
     NSMutableDictionary<NSString *, id> *event = [self baseEvent];
     _onContentProcessDidTerminate(event);
   }
+}
+
+- (void)downloadFile:(NSURL *)fileUrl {
+    NSURLRequest *request = [NSURLRequest requestWithURL:fileUrl];
+
+    NSURLSession *sharedSession = [NSURLSession sharedSession];
+    
+    [_webView.configuration.websiteDataStore.httpCookieStore getAllCookies:^(NSArray<NSHTTPCookie *> * _Nonnull allCookies) {
+        for (NSHTTPCookie *cookie in allCookies) {
+            [[[sharedSession configuration] HTTPCookieStorage] setCookie:cookie];
+        }
+        
+        NSURLSessionDownloadTask *downloadTask = [sharedSession downloadTaskWithRequest:request completionHandler:^(NSURL * _Nullable location, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+            if (error == nil) {
+                NSLog(@"location:%@",location.path);
+
+                NSString *documentsPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
+                NSFileManager *fileManager   = [NSFileManager defaultManager];
+                
+                NSMutableString *fileName = [NSMutableString string];
+                CFStringRef MIMEType = (__bridge CFStringRef)[response MIMEType];
+                CFStringRef UTI = UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, MIMEType, NULL);
+                NSString *extension = (__bridge NSString *)(UTTypeCopyPreferredTagWithClass(UTI, kUTTagClassFilenameExtension));
+                
+                if ([response.suggestedFilename isEqual: @"Unknown"]) {
+                    [fileName appendString:[NSString stringWithFormat:@"data.%@", extension]];
+                } else {
+                    [fileName appendString:response.suggestedFilename];
+                }
+ 
+                NSString *finalPath = [documentsPath stringByAppendingPathComponent:fileName];
+
+                BOOL success;
+                NSError *fileManagerError;
+                if ([fileManager fileExistsAtPath:finalPath]) {
+                    success = [fileManager removeItemAtPath:finalPath error:&fileManagerError];
+                }
+
+                success = [fileManager moveItemAtURL:location toURL:[NSURL fileURLWithPath:finalPath] error:&fileManagerError];
+
+                NSLog(@"finished %@", finalPath);
+
+                NSMutableDictionary<NSString *, id> *downloadEvent = [self baseEvent];
+                [downloadEvent addEntriesFromDictionary: @{
+                  @"downloadUrl": (response.URL).absoluteString,
+                  @"downloadedFilePath": finalPath
+                }];
+                
+                if (!success) {
+                    [downloadEvent addEntriesFromDictionary: @{
+                      @"downloadFileError": @"File download error"
+                    }];
+                }
+                    
+                self.onFileDownload(downloadEvent);
+            } else {
+                NSLog(@"download error:%@",error);
+            }
+        }];
+        
+        [downloadTask resume];
+    }];
 }
 
 /**
@@ -1021,8 +1084,8 @@ static NSDictionary* customCertificatesForHost;
 {
   WKNavigationResponsePolicy policy = WKNavigationResponsePolicyAllow;
   if (_onHttpError && navigationResponse.forMainFrame) {
+    NSHTTPURLResponse *response = (NSHTTPURLResponse *)navigationResponse.response;
     if ([navigationResponse.response isKindOfClass:[NSHTTPURLResponse class]]) {
-      NSHTTPURLResponse *response = (NSHTTPURLResponse *)navigationResponse.response;
       NSInteger statusCode = response.statusCode;
 
       if (statusCode >= 400) {
@@ -1048,9 +1111,21 @@ static NSDictionary* customCertificatesForHost;
           [downloadEvent addEntriesFromDictionary: @{
             @"downloadUrl": (response.URL).absoluteString,
           }];
+            [self downloadFile:response.URL];
           _onFileDownload(downloadEvent);
         }
       }
+    } else {
+        policy = WKNavigationResponsePolicyCancel;
+
+        NSMutableDictionary<NSString *, id> *downloadEvent = [self baseEvent];
+        [downloadEvent addEntriesFromDictionary: @{
+          @"downloadUrl": (response.URL).absoluteString,
+        }];
+
+
+        [self downloadFile:response.URL];
+        _onFileDownload(downloadEvent);
     }
   }
 
