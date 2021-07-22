@@ -210,6 +210,15 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
         webView.setIgnoreErrFailedForThisURL(url);
 
         RNCWebViewModule module = getModule(reactContext);
+        module.setDataDownloadUrl(null);
+
+        if (url.startsWith("data:")) {  //when url is base64 encoded data
+          module.setDataDownloadUrl(url);
+          if (module.grantFileDownloaderPermissions()) {
+            module.downloadDataFile();
+          }
+          return;
+        }
 
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
 

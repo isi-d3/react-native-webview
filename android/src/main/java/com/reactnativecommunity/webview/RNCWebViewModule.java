@@ -6,6 +6,7 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -18,6 +19,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.core.util.Pair;
 
+import android.util.Base64;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 import android.webkit.ValueCallback;
@@ -34,9 +36,13 @@ import com.facebook.react.modules.core.PermissionAwareActivity;
 import com.facebook.react.modules.core.PermissionListener;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,6 +59,7 @@ public class RNCWebViewModule extends ReactContextBaseJavaModule implements Acti
   private File outputImage;
   private File outputVideo;
   private DownloadManager.Request downloadRequest;
+  private String dataUrl;
 
   protected static class ShouldOverrideUrlLoadingLock {
     protected enum ShouldOverrideCallbackState {
@@ -104,6 +111,8 @@ public class RNCWebViewModule extends ReactContextBaseJavaModule implements Acti
           if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             if (downloadRequest != null) {
               downloadFile();
+            } else if (dataUrl != null) {
+              downloadDataFile();
             }
           } else {
             Toast.makeText(getCurrentActivity().getApplicationContext(), "Cannot download files as permission was denied. Please provide permission to write to storage, in order to download files.", Toast.LENGTH_LONG).show();
@@ -306,6 +315,51 @@ public class RNCWebViewModule extends ReactContextBaseJavaModule implements Acti
     this.downloadRequest = request;
   }
 
+  public void setDataDownloadUrl(String dataUrl) {
+    this.dataUrl = dataUrl;
+  }
+
+  public void downloadDataFile() {
+    File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+    String filetype = this.dataUrl.substring(this.dataUrl.indexOf("/") + 1, this.dataUrl.indexOf(";"));
+
+    SimpleDateFormat s = new SimpleDateFormat("yyyy-MM-dd-HHmmss");
+    String format = s.format(new Date());
+
+    String filename = "Data_" + format + "." + filetype;
+    File file = new File(path, filename);
+    try {
+      if(!path.exists()) {
+        path.mkdirs();
+      }
+
+      file.createNewFile();
+
+      String base64EncodedString = this.dataUrl.substring(this.dataUrl.indexOf(",") + 1);
+      byte[] decodedBytes = Base64.decode(base64EncodedString, Base64.DEFAULT);
+      OutputStream os = new FileOutputStream(file);
+      os.write(decodedBytes);
+      os.close();
+
+      //Tell the media scanner about the new file so that it is immediately available to the user.
+      MediaScannerConnection.scanFile(getCurrentActivity().getBaseContext(),
+        new String[]{file.toString()}, null,
+        new MediaScannerConnection.OnScanCompletedListener() {
+          public void onScanCompleted(String path, Uri uri) {
+            Log.i("ExternalStorage", "Scanned " + path + ":");
+            Log.i("ExternalStorage", "-> uri=" + uri);
+          }
+        });
+
+      Toast.makeText(getCurrentActivity().getApplicationContext(), "File Downloaded", Toast.LENGTH_LONG).show();
+    } catch (IOException e) {
+      Log.w("ExternalStorage", "Error writing " + file, e);
+      Toast.makeText(getCurrentActivity().getApplicationContext(), "Error downloading file", Toast.LENGTH_LONG).show();
+    }
+
+    setDataDownloadUrl(null);
+  }
+
   public void downloadFile() {
     DownloadManager dm = (DownloadManager) getCurrentActivity().getBaseContext().getSystemService(Context.DOWNLOAD_SERVICE);
     String downloadMessage = "Downloading";
@@ -316,11 +370,6 @@ public class RNCWebViewModule extends ReactContextBaseJavaModule implements Acti
   }
 
   public boolean grantFileDownloaderPermissions() {
-    // Permission not required for Android Q and above
-    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
-      return true;
-    }
-
     boolean result = ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     if (!result && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       PermissionAwareActivity activity = getPermissionAwareActivity();
