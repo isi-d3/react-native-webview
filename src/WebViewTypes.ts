@@ -251,6 +251,18 @@ export type OnShouldStartLoadWithRequest = (
   event: ShouldStartLoadRequest,
 ) => boolean;
 
+export interface BasicAuthCredential {
+  /**
+   * A username used for basic authentication.
+   */
+  username: string;
+
+  /**
+   * A password used for basic authentication.
+   */
+  password: string;
+}
+
 export interface CommonNativeWebViewProps extends ViewProps {
   cacheEnabled?: boolean;
   incognito?: boolean;
@@ -279,6 +291,7 @@ export interface CommonNativeWebViewProps extends ViewProps {
    * Append to the existing user-agent. Overridden if `userAgent` is set.
    */
   applicationNameForUserAgent?: string;
+  basicAuthCredential?: BasicAuthCredential;
 }
 
 export interface AndroidNativeWebViewProps extends CommonNativeWebViewProps {
@@ -301,7 +314,11 @@ export interface AndroidNativeWebViewProps extends CommonNativeWebViewProps {
   textZoom?: number;
   thirdPartyCookiesEnabled?: boolean;
   messagingModuleName?: string;
+  setBuiltInZoomControls?: boolean,
+  setDisplayZoomControls?: boolean,
+  nestedScrollEnabled?: boolean;
   readonly urlPrefixesForDefaultIntent?: string[];
+  forceDarkOn?: boolean;
 }
 
 export declare type ContentInsetAdjustmentBehavior = 'automatic' | 'scrollableAxes' | 'never' | 'always';
@@ -514,6 +531,13 @@ export interface IOSWebViewProps extends WebViewSharedProps {
    * @platform ios
    */
   sharedCookiesEnabled?: boolean;
+
+  /**
+   * When set to true the hardware silent switch is ignored.
+   * The default value is `false`.
+   * @platform ios
+   */
+  ignoreSilentHardwareSwitch?: boolean;
 
   /**
    * Set true if StatusBar should be light when user watch video fullscreen.
@@ -951,6 +975,45 @@ export interface AndroidWebViewProps extends WebViewSharedProps {
    * Sets ability to open fullscreen videos on Android devices.
    */
   allowsFullscreenVideo?: boolean;
+
+  /**
+   * Configuring Dark Theme
+   * 
+   * *NOTE* : The force dark setting is not persistent. You must call the static method every time your app process is started.
+   *  
+   * *NOTE* : The change from day<->night mode is a configuration change so by default the activity will be restarted
+   * and pickup the new values to apply the theme. 
+   * Take care when overriding this default behavior to ensure this method is still called when changes are made.
+   * 
+   * @platform android
+   */
+  forceDarkOn?: boolean;
+
+  /**
+   * Boolean value to control whether pinch zoom is enabled. Used only in Android.
+   * Default to true
+   *
+   * @platform android
+   */
+  setBuiltInZoomControls?: boolean;
+   
+  /**
+   * Boolean value to control whether built-in zooms controls are displayed. Used only in Android.
+   * Default to false
+   * Controls will always be hidden if setBuiltInZoomControls is set to `false`
+   * 
+   * @platform android
+   */
+  setDisplayZoomControls?: boolean;
+  
+  /**
+   * Allows to scroll inside the webview when used inside a scrollview.
+   * Behaviour already existing on iOS.
+   * Default to false
+   *
+   * @platform android
+   */
+  nestedScrollEnabled?: boolean;
 }
 
 export interface WebViewSharedProps extends ViewProps {
@@ -1120,4 +1183,9 @@ export interface WebViewSharedProps extends ViewProps {
    * Append to the existing user-agent. Overridden if `userAgent` is set.
    */
   applicationNameForUserAgent?: string;
+
+  /**
+   * An object that specifies the credentials of a user to be used for basic authentication.
+   */
+  basicAuthCredential?: BasicAuthCredential;
 }
