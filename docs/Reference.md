@@ -51,6 +51,9 @@ This document lays out the current public properties and methods for the React N
 - [`contentMode`](Reference.md#contentMode)
 - [`dataDetectorTypes`](Reference.md#datadetectortypes)
 - [`scrollEnabled`](Reference.md#scrollenabled)
+- [`nestedScrollEnabled`](Reference.md#nestedscrollenabled)
+- [`setBuiltInZoomControls`](Reference.md#setBuiltInZoomControls)
+- [`setDisplayZoomControls`](Reference.md#setDisplayZoomControls)
 - [`directionalLockEnabled`](Reference.md#directionalLockEnabled)
 - [`geolocationEnabled`](Reference.md#geolocationenabled)
 - [`allowFileAccessFromFileURLs`](Reference.md#allowFileAccessFromFileURLs)
@@ -76,7 +79,9 @@ This document lays out the current public properties and methods for the React N
 - [`limitsNavigationsToAppBoundDomains`](Reference.md#limitsNavigationsToAppBoundDomains)
 - [`autoManageStatusBarEnabled`](Reference.md#autoManageStatusBarEnabled)
 - [`setSupportMultipleWindows`](Reference.md#setSupportMultipleWindows)
+- [`basicAuthCredential`](Reference.md#basicAuthCredential)
 - [`enableApplePay`](Reference.md#enableApplePay)
+- [`forceDarkOn`](Reference.md#forceDarkOn)
 
 ## Methods Index
 
@@ -299,6 +304,8 @@ url
 
 > **_Note_**
 > Domain is only used on iOS
+
+The `syntheticEvent` can be stopped doing its default action by calling `syntheticEvent.preventDefault()`.
 
 ---
 
@@ -1040,6 +1047,38 @@ Boolean value that determines whether scrolling is enabled in the `WebView`. The
 
 ---
 
+### `nestedScrollEnabled`[⬆](#props-index)
+
+Boolean value that determines whether scrolling is possible in the `WebView` when used inside a `ScrollView` on Android. The default value is `false`. 
+
+Setting this to `true` will prevent the `ScrollView` to scroll when scrolling from inside the `WebView`.
+
+| Type | Required | Platform      |
+| ---- | -------- | ------------- |
+| bool | No       | Android       |
+
+---
+
+### `setBuiltInZoomControls`[⬆](#props-index)<!-- Link generated with jump2header -->
+
+Sets whether the WebView should use its built-in zoom mechanisms. The default value is `true`. Setting this to `false` will prevent the use of a pinch gesture to control zooming.
+
+| Type | Required | Platform      |
+| ---- | -------- | ------------- |
+| bool | No       | Android       |
+
+---
+
+### `setDisplayZoomControls`[⬆](#props-index)<!-- Link generated with jump2header -->
+
+Sets whether the WebView should display on-screen zoom controls when using the built-in zoom mechanisms (see `setBuiltInZoomControls`). The default value is `false`. 
+
+| Type | Required | Platform      |
+| ---- | -------- | ------------- |
+| bool | No       | Android       |
+
+---
+
 ### `directionalLockEnabled`[⬆](#props-index)<!-- Link generated with jump2header -->
 
 A Boolean value that determines whether scrolling is disabled in a particular direction.
@@ -1384,6 +1423,58 @@ Example:
 ```javascript
 <WebView enableApplePay={true} />
 ```
+
+### `forceDarkOn`
+
+Configuring Dark Theme
+*NOTE* : The force dark setting is not persistent. You must call the static method every time your app process is started.
+
+*NOTE* : The change from day<->night mode is a configuration change so by default the activity will be restarted and pickup the new values to apply the theme. Take care when overriding this default behavior to ensure this method is still called when changes are made.
+
+| Type    | Required | Platform |
+| ------- | -------- | -------- |
+| boolean | No       | Android  |
+
+Example:
+
+```javascript
+<WebView forceDarkOn={false} />
+### `menuItems`
+
+An array of custom menu item objects that will be appended to the UIMenu that appears when selecting text (will appear after 'Copy' and 'Share...').  Used in tandem with `onCustomMenuSelection`
+
+Example:
+
+```javascript
+<WebView menuItems={[{ label: 'Tweet', key: 'tweet' }, { label: 'Save for later', key: 'saveForLater' }]} />
+
+```
+
+### `onCustomMenuSelection`
+
+Function called when a custom menu item is selected.  It receives a Native event, which includes three custom keys: `label`, `key` and `selectedText`.
+
+```javascript
+<WebView 
+  menuItems={[{ label: 'Tweet', key: 'tweet', { label: 'Save for later', key: 'saveForLater' }]}
+  onCustomMenuSelection={(webViewEvent) => {
+    const { label } = webViewEvent.nativeEvent; // The name of the menu item, i.e. 'Tweet'
+    const { key } = webViewEvent.nativeEvent; // The key of the menu item, i.e. 'tweet'
+    const { selectedText } = webViewEvent.nativeEvent; // Text highlighted
+  }}
+  />
+```
+
+### `basicAuthCredential`
+
+An object that specifies the credentials of a user to be used for basic authentication.
+
+- `username` (string) - A username used for basic authentication.
+- `password` (string) - A password used for basic authentication.
+
+| Type   | Required |
+| ------ | -------- |
+| object | No       |
 
 ## Methods
 
